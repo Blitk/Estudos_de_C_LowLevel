@@ -1,0 +1,296 @@
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+
+#define COLUNAS 20
+#define LINHAS 10
+
+#ifdef _WIN32
+    #include <windows.h>
+    #include <conio.h>
+
+    void limpar(void) {
+        system("cls");
+    }
+
+    void configTerminal(void) {
+    }
+
+    void restaurarTerminal(void) {
+    }
+
+    void pausar(void) {
+        Sleep(100);
+    }
+
+    int lerCaractere(void) {
+        if (_kbhit()) {
+            return _getch();
+        }
+
+        return -1;
+    }
+
+#else
+    #include <unistd.h>
+    #include <termios.h>
+
+    static struct termios terminalOriginal;
+    static int terminalConfigurado = 0;
+
+    void limpar(void) {
+        printf("\033[2J\033[H");
+        fflush(stdout);
+    }
+
+    void configTerminal(void) {
+        struct termios novoTerminal;
+
+        if (tcgetattr(STDIN_FILENO, &terminalOriginal) == -1) {
+            return;
+        }
+
+        novoTerminal = terminalOriginal;
+        novoTerminal.c_lflag &= ~(ICANON | ECHO);
+        novoTerminal.c_cc[VMIN] = 0;
+        novoTerminal.c_cc[VTIME] = 1;
+
+        if (tcsetattr(STDIN_FILENO, TCSANOW, &novoTerminal) == 0) {
+            terminalConfigurado = 1;
+        }
+    }
+
+    void restaurarTerminal(void) {
+        if (terminalConfigurado) {
+            tcsetattr(STDIN_FILENO, TCSANOW, &terminalOriginal);
+            terminalConfigurado = 0;
+        }
+    }
+
+    void pausar(void) {
+        usleep(100000);
+    }
+
+    int lerCaractere(void) {
+        unsigned char tecla;
+        ssize_t resultado = read(STDIN_FILENO, &tecla, 1);
+
+        if (resultado == 1) {
+            return tecla;
+        }
+
+        return -1;
+    }
+#endif
+
+char mapa[LINHAS][COLUNAS + 1] = {
+    "====================",
+    "=........==........=",
+    "=.==.===.==.===.==.=",
+    "=..................=",
+    "=.==.==.====.==.==.=",
+    "=....==..C...==....=",
+    "=.======.==.======.=",
+    "=........==........=",
+    "=........@.........=",
+    "===================="
+};
+
+/* Mapa original, sem personagens */
+char cenario[LINHAS][COLUNAS + 1] = {
+    "====================",
+    "=........==........=",
+    "=.==.===.==.===.==.=",
+    "=..................=",
+    "=.==.==.====.==.==.=",
+    "=....==.....==....=",
+    "=.======.==.======.=",
+    "=........==........=",
+    "=..................=",
+    "===================="
+};
+
+int ghost_x = 8;
+int ghost_y = 9;
+
+int pacman_x = 5;
+int pacman_y = 9;
+
+int pontos = 0;
+int jogoAtivo = 1;
+
+void gameOver(void);
+
+void desenharMapa(void) {
+    limpar();
+
+    printf("PAC-MAN EM C\n");
+    printf("Pontuacao: %d\n\n", pontos);
+
+    for (int x = 0; x < LINHAS; x++) {
+        printf("%s\n", mapa[x]);
+    }
+
+    printf("\nWASD: mover | 0: sair\n");
+    fflush(stdout);
+}
+
+void atualizarPosicoes(void) {
+    for (int x = 0; x < LINHAS; x++) {
+        for (int y = 0; y < COLUNAS; y++) {
+            mapa[x][y] = cenario[x][y];
+        }
+    }
+
+    mapa[pacman_x][pacman_y] = 'C';
+    mapa[ghost_x][ghost_y] = '@';
+}
+
+void mover(int dx, int dy) {
+    int newx = pacman_x + dx;
+    int newy = pacman_y + dy;
+
+    if (newx < 0 || newx >= LINHAS ||
+        newy < 0 || newy >= COLUNAS) {
+        return;
+    }
+
+    if (cenario[newx][newy] == '=') {
+        return;
+    }
+
+    if (newx == ghost_x && newy == ghost_y) {
+        gameOver();
+        return;
+    }
+
+    if (cenario[newx][newy] == '.') {
+        pontos++;
+        cenario[newx][newy] = ' ';
+    }
+
+    pacman_x = newx;
+    pacman_y = newy;
+
+    atualizarPosicoes();
+}
+
+int gerarRotaGhost(void) {
+    int valores[] = {-1, -2, 1, 2};
+
+    return valores[rand() % 4];
+}
+
+void moverGhost(int direcao) {
+    int newx = ghost_x;
+    int newy = ghost_y;
+
+    switch (direcao) {
+        case 1:
+            newx--;
+            break;
+
+        case 2:
+            newy++;
+            break;
+
+        case -1:
+            newx++;
+            break;
+
+        case -2:
+            newy--;
+            break;
+
+        default:
+            return;
+    }
+
+    if (newx < 0 || newx >= LINHAS ||
+        newy < 0 || newy >= COLUNAS) {
+        return;
+    }
+
+    if (cenario[newx][newy] == '=') {
+        return;
+    }
+
+    if (newx == pacman_x && newy == pacman_y) {
+        gameOver();
+        return;
+    }
+
+    ghost_x = newx;
+    ghost_y = newy;
+
+    atualizarPosicoes();
+}
+
+void gameOver(void) {
+    restaurarTerminal();
+    limpar();
+
+    printf("  ____   GAME OVER   ____\n\n");
+    printf("  Pontuacao final: %d\n", pontos);
+    printf("\n");
+
+    jogoAtivo = 0;
+}
+
+int main(void) {
+    int tecla;
+
+    srand((unsigned int) time(NULL));
+
+    configTerminal();
+    atualizarPosicoes();
+
+    while (jogoAtivo) {
+	    desenharMapa();
+
+	    tecla = lerCaractere();
+
+	    if (tecla == '0') {
+	        break;
+	    }
+
+	    switch (tecla) {
+	        case 'w':
+	        case 'W':
+	            mover(-1, 0);
+	            break;
+
+	        case 's':
+	        case 'S':
+	            mover(1, 0);
+	            break;
+
+	        case 'a':
+	        case 'A':
+	            mover(0, -1);
+	            break;
+
+	        case 'd':
+	        case 'D':
+	            mover(0, 1);
+	            break;
+	    }
+
+	    if (jogoAtivo) {
+	        moverGhost(gerarRotaGhost());
+	    }
+
+	    pausar();
+	}
+
+    restaurarTerminal();
+
+    if (jogoAtivo) {
+        limpar();
+        printf("Jogo encerrado!\n");
+        printf("Pontuacao final: %d\n", pontos);
+    }
+
+    return 0;
+}
