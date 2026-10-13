@@ -19,7 +19,7 @@ int main(int arg, char* args[]){
         }
         struct sockaddr_in dest;
         int iBytes;
-        char buffer[100];
+        char buffer[101];
         int iSock = socket(AF_INET, SOCK_STREAM, 0);
         if(iSock == -1){
                 perror("Erro no socket:");
