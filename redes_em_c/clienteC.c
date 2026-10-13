@@ -25,11 +25,12 @@ int main(int arg, char* args[]){
                 perror("Erro no socket:");
                 exit(1);
         }
+        memset(&dest, 0, sizeof(dest));
         dest.sin_family = AF_INET;
         dest.sin_port = htons(atoi(args[2]));
         dest.sin_addr.s_addr = inet_addr(args[1]);
-        memset(&dest, 0, sizeof(dest)); 
-        if(connect(iSock, (struct sockaddr*)&dest, sizeof(struct sockaddr)) <0){
+         
+        if(connect(iSock, (struct sockaddr*)&dest, sizeof(dest)) <0){
                 perror("Connect: ");
                 exit(1);
         }
