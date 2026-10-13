@@ -41,4 +41,5 @@ int main(int arg, char* args[]){
         buffer[iBytes] = '\0';
         printf("%s",buffer);
         close(iSock);
+        return 0;
  }
