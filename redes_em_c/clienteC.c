@@ -18,6 +18,8 @@ int main(int arg, char* args[]){
                 exit(1);
         }
         struct sockaddr_in dest;
+        int iBytes;
+        char buffer[100];
         int iSock = socket(AF_INET, SOCK_STREAM, 0);
         if(iSock == -1){
                 perror("Erro no socket:");
@@ -31,4 +33,11 @@ int main(int arg, char* args[]){
                 perror("Connect: ");
                 exit(1);
         }
+        if((iBytes=recv(iSock, buffer, 100,0)) < 0){
+                perror("Recv: ");
+                exit(1);
+        }
+        buffer[iBytes] = '\0';
+        printf("%s",buffer);
+        close(iSock);
  }
