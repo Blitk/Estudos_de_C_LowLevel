@@ -10,7 +10,7 @@ int main (int arg, char *args[]){
 	
 	struct hostent *h;
 	
-	if (args != 2){
+	if (arg != 2){
 		printf ("\nUso: %s <HOSTNAME>\n", args[0]);
 		exit (1);
 	}
